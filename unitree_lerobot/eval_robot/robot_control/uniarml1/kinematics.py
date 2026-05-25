@@ -40,7 +40,7 @@ class RobotKinematics:
                 "Please install the optional dependencies of `kinematics` in the package."
             ) from e
 
-        # 确保 urdf_path 是字符串（placo 不接受 PosixPath）
+        # Ensure urdf_path is a string (placo does not accept PosixPath)
         urdf_path_str = str(urdf_path)
         self.robot = placo.RobotWrapper(urdf_path_str)
         self.solver = placo.KinematicsSolver(self.robot)
@@ -55,40 +55,40 @@ class RobotKinematics:
         self.tip_frame = self.solver.add_frame_task(self.target_frame_name, np.eye(4))
         # self.tip_frame = self.solver.add_frame_task(self.target_frame_name, np.eye(4), placo.FrameType.body)
 
-        # 关节偏好任务：让某些关节更倾向于移动
-        # 格式: {关节名: 权重}，权重越大越倾向于移动该关节
+        # Joint preference task: make certain joints more inclined to move
+        # Format: {joint_name: weight}, higher weight means more inclined to move the joint
         self.joint_preferences = {}
 
-        # 平滑正则化任务（可选）
+        # Smoothing regularization task (optional)
         self.smoothing_task = None
         self.smoothing_weight = 0.0
 
     def set_joint_preference(self, joint_name: str, weight: float):
         """
-        设置关节偏好权重，让IK求解时更倾向于使用该关节
+        Set joint preference weight to make IK solver prefer using that joint.
 
         Args:
-            joint_name: 关节名称
-            weight: 偏好权重（越大越倾向于移动该关节）
+            joint_name: Joint name
+            weight: Preference weight (higher weight means more inclined to move the joint)
         """
         self.joint_preferences[joint_name] = weight
 
     def set_joint_preferences(self, preferences: dict[str, float]):
         """
-        批量设置关节偏好权重
+        Batch set joint preference weights.
 
         Args:
-            preferences: {关节名: 权重} 字典
+            preferences: {joint_name: weight} dictionary
         """
         self.joint_preferences.update(preferences)
 
     def set_smoothing_weight(self, weight: float):
         """
-        设置平滑正则化权重
+        Set smoothing regularization weight.
 
         Args:
-            weight: 平滑权重（越大越平滑，但响应越慢）
-                    典型值: 0.01-0.1
+            weight: Smoothing weight (higher means smoother but slower response)
+                    Typical value: 0.01-0.1
         """
         self.smoothing_weight = weight
 
@@ -133,8 +133,8 @@ class RobotKinematics:
             desired_ee_pose: Target end-effector pose as a 4x4 transformation matrix
             position_weight: Weight for position constraint in IK
             orientation_weight: Weight for orientation constraint in IK, set to 0.0 to only constrain position
-            joint_regularization_weight: 正则化权重，让没有偏好的关节保持当前位置
-            smoothing_weight: 平滑正则化权重（可选），越大越平滑
+            joint_regularization_weight: Regularization weight to keep joints without preference at current position
+            smoothing_weight: Smoothing regularization weight (optional), higher values result in smoother motion
 
         Returns:
             Joint positions in degrees that achieve the desired end-effector pose
@@ -153,28 +153,28 @@ class RobotKinematics:
         # Configure the task based on position_only flag
         self.tip_frame.configure(self.target_frame_name, "soft", position_weight, orientation_weight)
 
-        # 添加关节正则化任务：让所有关节都有正则化约束
-        # 偏好权重高的关节正则化弱（容易移动），偏好权重低或无偏好的关节正则化强（难移动）
+        # Add joint regularization task: constrain all joints with regularization
+        # Joints with high preference weight have weak regularization (easy to move), joints with low/no preference have strong regularization (hard to move)
         joints_task = self.solver.add_joints_task()
         for i, joint_name in enumerate(self.joint_names):
-            # 为所有关节设置正则化目标（当前位置）
+            # Set regularization target for all joints (current position)
             joints_task.set_joint(joint_name, current_joint_rad[i])
 
-        # 计算每个关节的正则化权重
-        # 偏好权重越高，正则化权重越低（更容易偏离当前位置）
+        # Compute regularization weight for each joint
+        # Higher preference weight means lower regularization weight (easier to deviate from current position)
         regularization_weights = {}
         for joint_name in self.joint_names:
             preference = self.joint_preferences.get(joint_name, 0.0)
-            # 正则化权重 = 基础权重 / (偏好权重 + 1)
-            # 偏好=0 → 正则化=基础权重（最强约束）
-            # 偏好=0.8 → 正则化=基础权重/1.8（较弱约束）
+            # Regularization weight = base weight / (preference weight + 1)
+            # Preference=0 → regularization=base weight (strongest constraint)
+            # Preference=0.8 → regularization=base weight/1.8 (weaker constraint)
             regularization_weights[joint_name] = joint_regularization_weight / (preference + 1.0)
 
-        # 设置正则化权重（使用平均权重）
+        # Set regularization weight (using average weight)
         avg_weight = float(np.mean(list(regularization_weights.values())))
         joints_task.configure("joints_regularization", "soft", avg_weight)
 
-        # 添加平滑正则化任务（可选）
+        # Add smoothing regularization task (optional)
         smoothing_task = None
         if smoothing_weight is not None and smoothing_weight > 0:
             try:
@@ -189,7 +189,7 @@ class RobotKinematics:
         self.solver.solve(True)
         self.robot.update_kinematics()
 
-        # 清理任务
+        # Clean up tasks
         self.solver.remove_task(joints_task)
         if smoothing_task is not None:
             self.solver.remove_task(smoothing_task)

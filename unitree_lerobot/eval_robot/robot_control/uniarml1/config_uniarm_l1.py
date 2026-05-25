@@ -1,6 +1,6 @@
 """UniArmL1 robot configuration — all-in-one config module.
 
-修改此文件中的默认值即可调整所有参数，无需额外 YAML 文件。
+Modify default values in this file to adjust all parameters without requiring additional YAML files.
 
 Contains:
 - RobotConfig: base class with subclass registry
@@ -47,20 +47,16 @@ T = TypeVar("T", bound="RobotConfig")
 
 @dataclass
 class UniArmL1Config:
-    """UniArmL1 机械臂硬件配置。"""
+    """UniArmL1 robot arm hardware configuration."""
 
-    # 串口端口
     port: str
 
     disable_torque_on_disconnect: bool = True
 
-    # 安全限制：最大单步目标变化幅度
     max_relative_target: float | dict[str, float] | None = None
 
-    # 摄像头配置
     cameras: dict[str, CameraConfig] = field(default_factory=dict)
 
-    # 角度单位
     use_degrees: bool = False
 
     urdf_path: str | None = "../assets/uniarml1/urdf/UniArmL1.urdf"
@@ -68,30 +64,30 @@ class UniArmL1Config:
     use_vr: bool = False
     id: str | None = None
 
-    # 初始化移动时间（秒）：从当前位置平滑移动到初始位置的时间
-    # 设置为 0 表示立即跳转（可能导致抖动）
+    # Initialization movement duration (seconds): smooth transition from current position to initial position
+    # Set to 0 for immediate jump (may cause jitter)
     init_move_duration: float = 2.0
 
-    # 电机配置：关节名 -> 电机ID列表（支持双电机）
-    # 双电机关节：两个电机同步驱动同一关节
+    # Motor configuration: joint name -> list of motor IDs (supports dual motors)
+    # Dual-motor joint: two motors drive the same joint synchronously
     joint_motor_ids: dict[str, list[int]] = field(default_factory=lambda: {
         "shoulder_pan": [0],
-        "shoulder_lift": [1, 6],  # 双电机
-        "elbow_flex": [2, 7],     # 双电机
+        "shoulder_lift": [1, 6],  # dual motor
+        "elbow_flex": [2, 7],     # dual motor
         "wrist_flex": [3],
         "wrist_roll": [4],
         "gripper": [5],
     })
 
-    # 电机 PD 控制参数（按电机 ID 顺序，索引即为电机 ID）
+    # Motor PD control parameters (in motor ID order, index equals motor ID)
     kp_loop: list[float] | None = None
     kd_loop: list[float] | None = None
 
-    # 电机默认 kp/kd（用于电机控制模式）
+    # Motor default kp/kd (for motor control mode)
     kp_default: list[float] | None = None
     kd_default: list[float] | None = None
 
-    # 是否在没有真实机械臂的情况下运行（仿真模式）
+    # Whether to run without a real robot arm (simulation mode)
     no_real_robot: bool = False
 
 
@@ -108,7 +104,7 @@ UniArmL1ConfigType: TypeAlias = UniArmL1RobotConfig
 
 @dataclass
 class TeleopConfig:
-    """遥操作流程配置 — 修改默认值即可调整参数。"""
+    """Teleoperation flow configuration — modify default values to adjust parameters."""
 
     input: str = "vr"  # vr | keyboard | leader
     port: str = "/dev/ttyACM0"  # Follower arm serial port

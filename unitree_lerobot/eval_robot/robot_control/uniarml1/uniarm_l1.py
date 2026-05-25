@@ -19,8 +19,8 @@ from .kinematics import RobotKinematics
 logger = logging.getLogger(__name__)
 @dataclass
 class MotorCalibration:
-    motor_id: int  # 电机ID
-    joint_name: str  # 所属关节名
+    motor_id: int  # Motor ID
+    joint_name: str  # Joint name
     homing_offset: float
     range_min: float
     range_max: float
@@ -36,29 +36,28 @@ class UniArmL1:
     def __init__(self, config: UniArmL1RobotConfig):
         self.config = config
 
-        # 电机配置：支持双电机关节
-        self.joint_motor_ids = config.joint_motor_ids  # 关节名 -> 电机ID列表
-        self.motor_names = list(self.joint_motor_ids.keys())  # 关节名列表
-        self.n_joints = len(self.motor_names)  # 关节数 (6)
+        self.joint_motor_ids = config.joint_motor_ids  
+        self.motor_names = list(self.joint_motor_ids.keys())  
+        self.n_joints = len(self.motor_names)  
 
-        # 获取所有电机ID列表
+
         motor_ids = []
-        self.motor_to_joint = {}  # 电机ID -> 关节名 的反向映射
+        self.motor_to_joint = {}  # Reverse mapping: motor ID -> joint name
         for joint_name, ids in self.joint_motor_ids.items():
             for mid in ids:
                 motor_ids.append(mid)
                 self.motor_to_joint[mid] = joint_name
         self.motor_ids = sorted(motor_ids)
-        self.n_motors = len(self.motor_ids)  # 电机数 (8)
+        self.n_motors = len(self.motor_ids)  # number of motors (8)
     
         
 
         self.cameras = make_cameras_from_configs(config.cameras)
         self.urdf_path = config.urdf_path
         self.mesh_dir = Path(self.urdf_path).parent if self.urdf_path else None
-        self.pin_model = pin.buildModelFromUrdf(self.urdf_path) # type: ignore
+        self.pin_model = pin.buildModelFromUrdf(self.urdf_path) 
         self.pin_data = self.pin_model.createData()
-        # IK 配置
+        # IK configuration
         if self.urdf_path is None:
             raise ValueError("URDF path must not be None for IK solver initialization.")
 
@@ -70,7 +69,7 @@ class UniArmL1:
         self._running = False
         self._control_thread = None
 
-        # 关节级别数据 (n_joints = 6)
+        
         self.homing_rad = np.zeros(self.n_joints)
         self.range_min_rad = np.zeros(self.n_joints)
         self.range_max_rad = np.zeros(self.n_joints)
@@ -81,36 +80,36 @@ class UniArmL1:
         self.sim_spans = np.zeros(self.n_joints)
         self.home_set = np.zeros(self.n_joints)
 
-        # 电机级别数据 (n_motors = 8)
+        
         self.cur_pos_rad = np.zeros(self.n_motors)
         self.tgt_tau = np.zeros(self.n_motors)
-        self.v_current_sim = np.zeros(self.n_joints)  # 关节速度 (sim空间)
-        self.a_current_sim = np.zeros(self.n_joints)  # 关节加速度 (sim空间)
-        self.v_last_sim = np.zeros(self.n_joints)     # 上一次速度（用于计算加速度）
+        self.v_current_sim = np.zeros(self.n_joints)  
+        self.a_current_sim = np.zeros(self.n_joints)  
+        self.v_last_sim = np.zeros(self.n_joints)     
         self.last_dyn_time = time.time()              # 上一次动力学计算时间
 
         self.con_mode = np.zeros(self.n_motors)
         self.calibration_fpath = Path.home() / f".cache/unitree/calibration/{config.id}.json"
 
-        # 默认值
+        # Default values
         self.kp_torque = [0.3,   1.6,  0.55,   0.6,    0.2,    0.1,  1.2,  0.45]  # M0-M7
         self.kd_torque = [0.001, 0.004, 0.02, 0.038, 0.012, 0.001, 0.0005, 0.016]
         self.max_torque = [1.5, 3.0, 2.0, 1.5, 1.5, 1.5, 3.0, 2.0]
 
-        # 每个电机独立的 homing 和 range（8个电机）
+        # Independent homing and range for each motor (8 motors)
         self.motor_homing_rad = np.zeros(self.n_motors)
         self.motor_range_min_rad = np.zeros(self.n_motors)
         self.motor_range_max_rad = np.zeros(self.n_motors)
 
-        # 先尝试从文件加载calibration
+        # Try to load calibration from file first
         self._load_calibration_from_file()
-        
-        # 只在calibration有数据时初始化
+
+        # Only initialize if calibration has data
         if self.calibration:
             self.init_rate_phys_sim_spans()
             self.init_homing_rad()
-        # home_set: sim空间的home位置
-        # 关节0:中, 1:大, 2:小, 3:小, 4:中, 5:中
+        # home_set: home position in sim space
+        # joint 0: middle, 1: high, 2: low, 3: low, 4: middle, 5: middle
         self.home_set = np.zeros(self.n_joints)
         for i, joint_name in enumerate(self.motor_names):
             q_min, q_max = self._get_joint_limits(joint_name)
@@ -127,34 +126,34 @@ class UniArmL1:
         self.init_finish = False
         self.last = 6.0
 
-        # 尝试连接硬件，如果失败则使用模拟模式
+        # Try to connect hardware, use simulation mode if it fails
         if self.config.no_real_robot:
-            print("⚠️ no_real_robot=True, 使用模拟模式")
+            print("⚠️ no_real_robot=True, using simulation mode")
             self.bus = None
             self.sim_mode = True
         else:
             try:
                 self.bus = UnitreeMotorsBus(port=self.config.port, motor_ids=self.motor_ids)
-                self.bus.range_max_rad = self.motor_range_max_rad.copy()  # 电机级别
-                self.bus.range_min_rad = self.motor_range_min_rad.copy()  # 电机级别
+                self.bus.range_max_rad = self.motor_range_max_rad.copy()  # motor level
+                self.bus.range_min_rad = self.motor_range_min_rad.copy()  # motor level
                 self.sim_mode = False
             except Exception as e:
-                print(f"⚠️ 无法连接硬件 ({e}), 使用模拟模式")
+                print(f"⚠️ Cannot connect to hardware ({e}), using simulation mode")
                 self.bus = None
                 self.sim_mode = True
         self.ee_state = 0
 
         self.teleop_enabled = True
-        self._step_first_active = True  # 标志：第一次激活遥操时限制姿态跳变
-        # 初始姿态 (sim空间)
+        self._step_first_active = True  # Flag: limit attitude jump on first teleop activation
+        # Initial pose (sim space)
         self.q_init_sim_rad = np.array([0.0, 0.7, -0.5 , -0.9,0.0,0.0])
         self.q_init_rad = self.map_sim_to_output_rad_all(self.q_init_sim_rad)
-        self.last_sim_q_deg = np.rad2deg(self.q_init_sim_rad)  
+        self.last_sim_q_deg = np.rad2deg(self.q_init_sim_rad)  # converted to degrees
 
 
     def init_homing_rad(self):
-        """初始化每个电机的独立 homing 和 range"""
-        # 首先初始化每个电机的独立数据
+        """Initialize independent homing and range for each motor"""
+        # First initialize independent data for each motor
         for motor_id in self.motor_ids:
             cal = self.calibration.get(motor_id)
             if cal is None:
@@ -167,7 +166,7 @@ class UniArmL1:
             print(f"Motor {motor_id} ({cal.joint_name}): homing={self.motor_homing_rad[motor_id]:.4f} rad, "
                   f"range=[{self.motor_range_min_rad[motor_id]:.4f}, {self.motor_range_max_rad[motor_id]:.4f}] rad")
 
-        # 关节级别数据：用于单电机关节和 sim→output 主映射（使用第一个电机）
+        # Joint-level data: used for single-motor joints and sim→output main mapping (using first motor)
         for i in range(len(self.motor_names)):
             joint_name = self.motor_names[i]
             motor_ids = self.joint_motor_ids[joint_name]
@@ -178,27 +177,27 @@ class UniArmL1:
             self.range_max_rad[i] = self.motor_range_max_rad[motor_id]
 
             if len(motor_ids) > 1:
-                # 双电机：显示两个电机的数据对比
+                # Dual-motor: display data comparison of two motors
                 print(f"Joint {i} ({joint_name}): M{motor_ids[0]} homing={self.motor_homing_rad[motor_ids[0]]:.4f}, "
                       f"M{motor_ids[1]} homing={self.motor_homing_rad[motor_ids[1]]:.4f}")
 
-        print("关节级别 homing_rad:", self.homing_rad)
-        print("关节级别 range_min_rad:", self.range_min_rad)
-        print("关节级别 range_max_rad:", self.range_max_rad)
+        print("Joint-level homing_rad:", self.homing_rad)
+        print("Joint-level range_min_rad:", self.range_min_rad)
+        print("Joint-level range_max_rad:", self.range_max_rad)
 
     
 
     def _load_calibration_from_file(self) -> bool:
         """
-        从文件加载校准数据
-        返回: 是否成功加载
+        Load calibration data from file
+        Returns: whether loading was successful
         """
         import json
 
         calibration_file = self.calibration_fpath
 
         if not calibration_file.exists():
-            logger.warning(f"校准文件不存在: {calibration_file}")
+            logger.warning(f"Calibration file does not exist: {calibration_file}")
             return False
 
         try:

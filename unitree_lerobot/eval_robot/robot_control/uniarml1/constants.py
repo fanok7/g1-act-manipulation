@@ -1,15 +1,15 @@
 import math
 
-# 通信协议基础定义
-BAUDRATE = 6000000        # 通信波特率固定为 6Mbps [cite: 43, 67]
-HEAD_TX = b'\xfe\xee'     # 发送指令帧头 (2字节) 
-HEAD_RX = b'\xfc\xee'     # 接收反馈帧头 (2字节) 
-TX_LEN = 20               # 控制命令数据包长度 (20字节) [cite: 75]
-RX_LEN = 26               # 反馈数据包长度 (26字节) [cite: 95]
+# Communication protocol basic definitions
+BAUDRATE = 6000000        # Communication baud rate fixed at 6Mbps [cite: 43, 67]
+HEAD_TX = b'\xfe\xee'     # Transmitted command frame header (2 bytes)
+HEAD_RX = b'\xfc\xee'     # Received feedback frame header (2 bytes)
+TX_LEN = 20               # Control command data packet length (20 bytes) [cite: 75]
+RX_LEN = 26               # Feedback data packet length (26 bytes) [cite: 95]
 
 GEAR_RATIO = 288.35
 
-# 物理量换算系数 
+# Physical quantity conversion coefficients
 K_POS = 32768 / (2 * math.pi)        # 1 rad = 32768/2
 K_SPEED = 32768 / (2 * math.pi)         # 1 rad/s = 2.56/2
 K_TORQUE = 256000.0    # 1 Nm = 256000
@@ -18,24 +18,24 @@ K_KD = 128000000.0     # 1 unit = 128000000
 K_VOLTAGE = 0.5
 
 
-OUT_POS_RES = 8192 # 输出端 13 位绝对位置传感器 (2^13 = 8192 表示 1 圈) [cite: 108]
+OUT_POS_RES = 8192 # Output shaft 13-bit absolute position sensor (2^13 = 8192 represents 1 revolution) [cite: 108]
 
-# 故障码定义 [cite: 141]
+# Error code definitions [cite: 141]
 ERROR_MAP = {
-    0x01:     "过流",
-    0x02:     "瞬态过压",
-    0x04:     "持续过压",
-    0x08:     "欠压",
-    0x10:     "芯片过热",
-    0x20:     "MOS 过热",
-    0x40:     "MOS 温度异常",
-    0x80:     "壳体过热",
-    0x100:    "壳体温度异常",
-    0x200:    "绕组过热",
-    0x400:    "转子编码器1错误",
-    0x800:    "转子编码器2错误",
-    0x1000:   "输出编码器错误",
-    0x40000:  "通信校验错误",
+    0x01:     "Overcurrent",
+    0x02:     "Transient overvoltage",
+    0x04:     "Sustained overvoltage",
+    0x08:     "Undervoltage",
+    0x10:     "Chip overheating",
+    0x20:     "MOS overheating",
+    0x40:     "MOS temperature anomaly",
+    0x80:     "Housing overheating",
+    0x100:    "Housing temperature anomaly",
+    0x200:    "Winding overheating",
+    0x400:    "Rotor encoder 1 error",
+    0x800:    "Rotor encoder 2 error",
+    0x1000:   "Output encoder error",
+    0x40000:  "Communication checksum error",
 }
 
 

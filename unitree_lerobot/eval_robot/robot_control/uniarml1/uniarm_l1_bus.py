@@ -1,4 +1,4 @@
-# unitree.py 核心部分备份
+# unitree.py core backup
 
 import struct
 import time
@@ -45,7 +45,7 @@ class MotorState:
 
 
 class UnitreeMotorSDK:
-    """Unitree 电机 SDK - 单总线半双工通信，支持位置、速度、力矩控制模式，带 CRC 校验和连续位置跟踪"""
+    """Unitree motor SDK - single-bus half-duplex communication, supporting position/velocity/torque control modes with CRC checksum and continuous position tracking"""
 
     def __init__(self, motor_ids, port: str):
         self.ser = serial.Serial(
@@ -63,7 +63,7 @@ class UnitreeMotorSDK:
         self.verbose_errors = False
         self._serial_lock = threading.RLock()
         self.last_valid_time = {}
-        self.pos_rad_unwrapped = {motor_id: 0.0 for motor_id in motor_ids}  # 追踪 unwrapped 位置
+        self.pos_rad_unwrapped = {motor_id: 0.0 for motor_id in motor_ids}  # Track unwrapped position
         self.output_zero_offset = {motor_id: None for motor_id in motor_ids}
     @staticmethod
     def _wrap_0_2pi(x):

@@ -140,7 +140,6 @@ def setup_uniarm_robot(cfg: EvalUniArmConfig):
     from unitree_lerobot.eval_robot.robot_control.uniarml1.uniarm_l1 import UniArmL1
     from unitree_lerobot.eval_robot.robot_control.uniarml1.config_uniarm_l1 import UniArmL1Config
 
-    # 直接使用相对于脚本的路径
     urdf_path = Path(__file__).resolve().parent / "assets/uniarml1/urdf/UniArmL1.urdf"
     
     if not urdf_path.exists():
