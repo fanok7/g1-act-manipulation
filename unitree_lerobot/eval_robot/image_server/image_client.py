@@ -725,6 +725,161 @@ class ImageClient:
         self._subscriber_manager.close()
         logger_mp.info("Image client has been closed.")
 
+class LocalCamera:
+    """Local USB camera with background frame capture.
+
+    Usage:
+        cam = LocalCamera("/dev/video0")
+        cam.connect()
+        frame = cam.read()    # RGB numpy array, non-blocking
+        cam.disconnect()
+
+    Batch creation:
+        cameras = LocalCamera.from_config(["head:2", "wrist:0"])
+    """
+
+    def __init__(
+        self,
+        device: int | str = 0,
+        fps: int = 30,
+        width: int = 640,
+        height: int = 480,
+        fourcc: str | None = "MJPG",
+        warmup_s: float = 1.0,
+    ):
+        if isinstance(device, Path):
+            device = str(device)
+        self._device = device
+        self._fps = fps
+        self._width = width
+        self._height = height
+        self._fourcc = fourcc
+        self._warmup_s = warmup_s
+
+        self._cap: cv2.VideoCapture | None = None
+        self._thread: Thread | None = None
+        self._stop_event: Event | None = None
+        self._frame_lock: Lock = Lock()
+        self._latest_frame: np.ndarray | None = None
+        self._new_frame_event: Event = Event()
+
+    def __str__(self) -> str:
+        return f"LocalCamera({self._device})"
+
+    @property
+    def is_connected(self) -> bool:
+        return self._cap is not None and self._cap.isOpened()
+
+    @property
+    def width(self) -> int:
+        return self._width
+
+    @property
+    def height(self) -> int:
+        return self._height
+
+    @property
+    def fps(self) -> int:
+        return self._fps
+
+    def connect(self) -> None:
+        """Open the camera, apply settings, and warm up."""
+        if self.is_connected:
+            return
+
+        self._cap = cv2.VideoCapture(self._device)
+        if not self._cap.isOpened():
+            self._cap.release()
+            self._cap = None
+            raise ConnectionError(f"Failed to open {self}")
+
+        if self._fourcc is not None:
+            self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*self._fourcc))
+        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._width)
+        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._height)
+        self._cap.set(cv2.CAP_PROP_FPS, self._fps)
+
+        t0 = time.time()
+        while time.time() - t0 < self._warmup_s:
+            self._cap.read()
+            time.sleep(0.05)
+
+    def read(self, timeout_ms: float = 500) -> np.ndarray:
+        """Return the latest RGB frame (non-blocking)."""
+        if not self.is_connected:
+            raise RuntimeError(f"{self} is not connected.")
+
+        if self._thread is None or not self._thread.is_alive():
+            self._start_thread()
+
+        if not self._new_frame_event.wait(timeout=timeout_ms / 1000.0):
+            raise TimeoutError(f"Timed out waiting for frame from {self}")
+
+        with self._frame_lock:
+            frame = self._latest_frame
+            self._new_frame_event.clear()
+
+        if frame is None:
+            raise RuntimeError(f"No frame available from {self}")
+        return frame
+
+    # Alias for backward compatibility with teleop_runner
+    async_read = read
+
+    def disconnect(self) -> None:
+        """Stop the background thread and release the camera."""
+        self._stop_thread()
+        if self._cap is not None:
+            self._cap.release()
+            self._cap = None
+
+    @staticmethod
+    def from_config(camera_strs: list[str] | None) -> dict[str, "LocalCamera"]:
+        """Create cameras from ["name:device_id", ...] strings."""
+        if not camera_strs:
+            return {}
+        cameras: dict[str, LocalCamera] = {}
+        for cam_str in camera_strs:
+            if ":" not in cam_str:
+                continue
+            name, dev = cam_str.split(":", 1)
+            if dev.isdigit():
+                device = f"/dev/video{dev}"
+            else:
+                device = dev
+            cameras[name] = LocalCamera(device=device, fourcc="MJPG")
+        return cameras
+
+    # -- internals --
+
+    def _start_thread(self) -> None:
+        self._stop_thread()
+        self._stop_event = Event()
+        self._thread = Thread(target=self._read_loop, daemon=True)
+        self._thread.start()
+
+    def _stop_thread(self) -> None:
+        if self._stop_event is not None:
+            self._stop_event.set()
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join(timeout=2.0)
+        self._thread = None
+        self._stop_event = None
+
+    def _read_loop(self) -> None:
+        while self._stop_event and not self._stop_event.is_set():
+            if self._cap is None:
+                break
+            ret, frame = self._cap.read()
+            if not ret or frame is None:
+                time.sleep(0.01)
+                continue
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            with self._frame_lock:
+                self._latest_frame = rgb
+            self._new_frame_event.set()
+
+
 def main():
     # command line args
     import argparse
