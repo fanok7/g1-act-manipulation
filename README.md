@@ -10,11 +10,7 @@ Deux tâches sont opérationnelles : saisir une bouteille, et manipuler une feui
      puis remplacer la ligne ci-dessous.
      https://github.com/fanok7/g1-act-manipulation/issues/new (glisser la video, copier l URL generee) -->
 
-<!-- coller ici l URL de la video obtenue en la glissant dans une issue GitHub -->
-
-Exemple vidéo
-
-https://youtube.com/shorts/lJPqH0nxxa0?feature=share
+<!-- https://github.com/user-attachments/assets/a73e3916-3887-46c8-945c-4247a61ed420 -->
 
 ---
 
@@ -62,44 +58,6 @@ python unitree_lerobot/eval_robot/eval_g1.py \
     --frequency=30 --arm="G1_29" --ee="inspire1" \
     --motion=true --visualization=false
 ```
-
-**→ [`LANCER_INFERENCE.md`](LANCER_INFERENCE.md)** — commandes complètes des 4 terminaux, pour les
-deux modèles.
-
-> ⚠️ **Sécurité.** Le robot bouge dès le lancement, y compris avec `--send_real_robot=false` (ce
-> drapeau existe mais n'est jamais lu par `eval_g1.py`). Arrêt d'urgence à portée de main.
-> Couper avec **Ctrl-C** : la séquence d'arrêt ouvre les mains puis relâche progressivement les
-> bras. Ce que la main tient est lâché.
-
-## Documentation
-
-| Document | Contenu |
-|---|---|
-| [`PIPELINE_G1.md`](PIPELINE_G1.md) | La chaîne complète : téléopération, collecte, conversion, entraînement, inférence, diagnostic |
-| [`LANCER_INFERENCE.md`](LANCER_INFERENCE.md) | Commandes d'inférence prêtes à l'emploi |
-| [`SESSION_NOTES_inference_setup.md`](SESSION_NOTES_inference_setup.md) | Journal de mise en route et correctifs |
-| [`README_unitree.md`](README_unitree.md) | Documentation d'origine d'Unitree |
-
-## Principaux correctifs apportés
-
-Le portage sur ce robot a demandé plusieurs corrections, documentées dans `PIPELINE_G1.md` :
-
-- **Conversion BGR → RGB** avant la politique. `cv2.imdecode` produit du BGR alors que les vidéos
-  d'entraînement sont décodées en RGB : le modèle voyait une bouteille bleue en orange et ne
-  reconnaissait plus la scène. C'est le correctif qui a débloqué la qualité du comportement.
-- **Séquence d'arrêt propre** sur Ctrl-C : ouverture des mains, puis relâchement progressif des bras
-  vers le contrôleur d'équilibre embarqué.
-- **Pont Modbus → DDS** pour les mains Inspire, qui communiquent en Modbus/Ethernet sur ce robot et
-  non en série comme le suppose le pilote officiel.
-- **Caméra tête** basculée sur la UGREEN 2K (`/dev/video6`), import `pyrealsense2` rendu optionnel.
-
-### Un piège à connaître : `n_action_steps`
-
-Les politiques à *chunks* prédisent N actions d'un coup et les exécutent **en boucle ouverte** — ni
-la caméra ni l'état des bras ne sont consultés entre-temps. Il est tentant de réduire
-`n_action_steps` pour « regarder plus souvent » : c'est contre-productif. Sans lissage temporel
-(`temporal_ensemble_coeff: None`), chaque nouveau chunk ne prolonge pas celui en cours, et le geste
-repart de zéro au lieu d'aboutir. **Laisser `n_action_steps` égal à `chunk_size`.**
 
 ## Licence et attribution
 
