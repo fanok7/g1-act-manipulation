@@ -12,6 +12,10 @@ Deux tâches sont opérationnelles : saisir une bouteille, et manipuler une feui
 
 <!-- coller ici l URL de la video obtenue en la glissant dans une issue GitHub -->
 
+Exemple vidéo
+
+https://youtube.com/shorts/lJPqH0nxxa0?feature=share
+
 ---
 
 ## Modèles et jeux de données
