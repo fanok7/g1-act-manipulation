@@ -1,7 +1,7 @@
 # Politiques de manipulation ACT sur Unitree G1
 
 Apprentissage par imitation sur un Unitree G1 EDU (29 DoF, mains Inspire RH52E2) : téléopération en réalité virtuelle pour collecter les démonstrations, entraînement de politiques ACT, puis inférence embarquée temps réel sur le Jetson Orin du robot.
-Deux tâches sont opérationnelles : saisir une bouteille, et manipuler une feuille.
+Tâche opérationnelle : saisir une bouteillee.
 
 https://github.com/user-attachments/assets/a73e3916-3887-46c8-945c-4247a61ed420
 
@@ -28,14 +28,8 @@ hf download G1Republic/act_G1_Bottle \
 
 Mesuré sur le Jetson Orin du robot (JetPack 5.1, torch 2.0, CUDA 11.4), boucle de contrôle à 30 Hz :
 
-| Politique | Inférence | Cadence réelle | Boucle bloquée |
-|---|---|---|---|
-| **ACT** | **148 ms** | **27,4 Hz** | 8 % |
-| SmolVLA (~450 M) | 913 ms | ~11 Hz | 66 % |
-
 ACT tourne à la fréquence d'enregistrement des démonstrations (30 fps), donc le geste est rejoué à
-sa vitesse naturelle. SmolVLA a été porté sur ce matériel et fonctionne, mais son temps d'inférence
-bloque la boucle de contrôle : **ACT est le choix retenu pour le temps réel sur ce robot.**
+sa vitesse naturelle.
 
 ## Démarrage rapide
 
