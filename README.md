@@ -1,4 +1,4 @@
-# G1 Republic — politiques de manipulation ACT sur Unitree G1
+# Politiques de manipulation ACT sur Unitree G1
 
 Apprentissage par imitation sur un **Unitree G1 EDU** (29 DoF, mains Inspire RH52E2) : téléopération
 en réalité virtuelle pour collecter les démonstrations, entraînement de politiques **ACT**, puis
