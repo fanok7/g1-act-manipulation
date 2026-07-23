@@ -8,9 +8,9 @@ Deux tâches sont opérationnelles : saisir une bouteille, et manipuler une feui
 
 <!-- Vidéo de démonstration : glisser le fichier dans une issue GitHub pour obtenir une URL,
      puis remplacer la ligne ci-dessous.
-     https://github.com/user-attachments/assets/xxxxxxxx -->
+     https://github.com/fanok7/g1-act-manipulation/issues/new (glisser la video, copier l URL generee) -->
 
-https://github.com/G1Republic/REPO/assets/VIDEO
+<!-- coller ici l URL de la video obtenue en la glissant dans une issue GitHub -->
 
 ---
 
