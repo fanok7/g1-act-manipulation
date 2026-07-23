@@ -10,3 +10,17 @@ cam_right_wrist.jpg
 cam_left_wrist.jpg
 data/
 ./data
+
+# --- Modèles entraînés (I-Interim) ---
+# Poids trop lourds pour git : seul act_G1_Bottle est publié, via Git LFS ou HF Hub.
+unitree_lerobot/models/**
+!unitree_lerobot/models/act_G1_Bottle/
+!unitree_lerobot/models/act_G1_Bottle/pretrained_model/
+!unitree_lerobot/models/act_G1_Bottle/pretrained_model/*.json
+!unitree_lerobot/models/act_G1_form/
+!unitree_lerobot/models/act_G1_form/checkpoints/
+!unitree_lerobot/models/act_G1_form/checkpoints/100000/
+!unitree_lerobot/models/act_G1_form/checkpoints/100000/pretrained_model/
+!unitree_lerobot/models/act_G1_form/checkpoints/100000/pretrained_model/*.json
+# états d'optimiseur : inutiles pour l'inférence
+**/training_state/

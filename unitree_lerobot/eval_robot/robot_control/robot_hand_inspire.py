@@ -56,9 +56,17 @@ class Inspire_Controller:
         self.subscribe_state_thread.daemon = True
         self.subscribe_state_thread.start()
 
+        _subscribe_timeout_s = 5.0
+        _subscribe_start = time.time()
         while True:
             if any(self.right_hand_state_array):  # any(self.left_hand_state_array) and
                 break
+            if time.time() - _subscribe_start > _subscribe_timeout_s:
+                raise TimeoutError(
+                    f"[Inspire_Controller] No data received on '{kTopicInspireState}' after "
+                    f"{_subscribe_timeout_s}s. Is the Inspire hand driver/service running and "
+                    "publishing on this DDS topic?"
+                )
             time.sleep(0.01)
             logger_mp.warning("[Inspire_Controller] Waiting to subscribe dds...")
         logger_mp.info("[Inspire_Controller] Subscribe dds ok.")
@@ -101,6 +109,29 @@ class Inspire_Controller:
 
         self.HandCmb_publisher.Write(self.hand_msg)
         # logger_mp.debug("hand ctrl publish ok.")
+
+    def open_hands(self, duration=0.6):
+        """Open both hands, publishing from the calling process.
+
+        `control_process` runs in a separate daemon Process, which Ctrl-C kills along with the
+        parent — so writing the open pose into its shared arrays is a race it usually loses. This
+        publishes on the command topic directly instead, and repeats for `duration` because the
+        Modbus bridge may miss a single message.
+        """
+        logger_mp.info("[Inspire_Controller] opening hands...")
+        if not hasattr(self, "hand_msg"):
+            # Built in control_process, which lives in the child; the parent needs its own.
+            self.hand_msg = MotorCmds_()
+            self.hand_msg.cmds = [
+                unitree_go_msg_dds__MotorCmd_()
+                for _ in range(len(Inspire_Right_Hand_JointIndex) + len(Inspire_Left_Hand_JointIndex))
+            ]
+        openq = np.full(Inspire_Num_Motors, 1.0)
+        deadline = time.time() + duration
+        while time.time() < deadline:
+            self.ctrl_dual_hand(openq, openq)
+            time.sleep(1.0 / self.fps)
+        logger_mp.info("[Inspire_Controller] hands opened.")
 
     def control_process(
         self,

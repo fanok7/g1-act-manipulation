@@ -248,6 +248,38 @@ class G1_29_ArmController:
             current_attempts += 1
             time.sleep(0.05)
 
+    def release_arms(self, duration=2.0):
+        """Hand the arms back over, from wherever they currently are — no go-home move first.
+
+        In motion mode this fades the arm_sdk weight 1 -> 0, so the onboard balance controller
+        takes the arms back. Otherwise it fades the arm joints' kp/kd to zero, which really does
+        let them drop; body joints stay locked either way.
+        """
+        logger_mp.info("[G1_29_ArmController] releasing arms...")
+        # Freeze the target on the measured pose so the fade starts without a jump.
+        with self.ctrl_lock:
+            self.q_target = self.get_current_dual_arm_q()
+            self.tauff_target = np.zeros(14)
+        time.sleep(0.1)
+
+        steps = max(2, int(duration / 0.02))
+        if self.motion_mode:
+            for weight in np.linspace(1.0, 0.0, num=steps):
+                self.msg.motor_cmd[G1_29_JointIndex.kNotUsedJoint0].q = weight
+                time.sleep(0.02)
+            self.msg.motor_cmd[G1_29_JointIndex.kNotUsedJoint0].q = 0.0
+        else:
+            arm_gains = {id: (self.msg.motor_cmd[id].kp, self.msg.motor_cmd[id].kd) for id in G1_29_JointArmIndex}
+            for ratio in np.linspace(1.0, 0.0, num=steps):
+                for id, (kp, kd) in arm_gains.items():
+                    self.msg.motor_cmd[id].kp = kp * ratio
+                    self.msg.motor_cmd[id].kd = kd * ratio
+                time.sleep(0.02)
+            for id in G1_29_JointArmIndex:
+                self.msg.motor_cmd[id].kp = 0.0
+                self.msg.motor_cmd[id].kd = 0.0
+        logger_mp.info("[G1_29_ArmController] arms released.")
+
     def speed_gradual_max(self, t=5.0):
         """Parameter t is the total time required for arms velocity to gradually increase to its maximum value, in seconds. The default is 5.0."""
         self._gradual_start_time = time.time()
